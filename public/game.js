@@ -3,10 +3,10 @@ const ctx = canvas.getContext("2d");
 
 // Game state
 let gameState = "start"; // "start", "playing", "gameOver"
-let countdown = 5;
+let countdown = 3;
 let countdownInterval;
 
-// Start button
+// Start butt
 const startButton = document.createElement("button");
 
 // Mouse position
@@ -32,14 +32,32 @@ const player = {
   bullets: [],
   bulletSpeed: 10,
   bulletWidth: 5, // Increased bullet width
-  bulletHeight: 20,
+  bulletHeight: 20, // Increased bullet height
   canShoot: true,
-  isGameOver: false,
   score: 0,
   lives: 3,
-  powerUp: null,
-  powerUpDuration: 0,
-  powerUpTimer: 0,
+  fireCooldown: 20, // ms
+  lastShotTime: 0,
+  activePowerUps: [],
+  weapon: "normal",
+  weaponSelect: false,
+  weaponDuration: 0,
+};
+
+// Bot configuration
+const botConfig = {
+  size: 15,
+  color: "red",
+  hp: 3,
+  speed: 3,
+};
+
+// Boss configuration
+const bossConfig = {
+  speed: 2,
+  hp: 100000,
+  size: 40,
+  color: "purple",
 };
 
 // Obstacles
@@ -50,18 +68,24 @@ const obstacles = [
   { x: 700, y: 400, width: 20, height: 100, color: "gray" },
   { x: 100, y: 500, width: 100, height: 20, color: "gray" },
 ];
-
+const bosses = [];
+let bossActive = false;
 let autoShootInterval;
-
-// Bots
 const bots = [];
 const numBots = 5;
-const botSpeed = 2;
+const weaponTypes = ["5hp", "slow", "spread"]; // Các loại vũ khí
+const weapon = {
+  x: 0,
+  y: 0,
+  size: 20,
+  type: "",
+}; // Đối tượng vũ khí
+let weaponSelectWindow = false;
 let botsActive = false;
 
 // Power-ups
 const powerUps = [];
-const powerUpTypes = ["undead", "speedBoost", "moreBullet"];
+const powerUpTypes = ["unDead", "speedBoost", "moreBullet"];
 let powerUpInterval;
 
 function createPowerUp() {
@@ -72,14 +96,17 @@ function createPowerUp() {
     type: powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)],
   };
 }
-
+let selectedWeapon = null;
+let selectedWeaponIndex = null;
+const weapons = [];
 function createBot() {
-  return {
-    x: Math.random() * canvas.width,
-    y: Math.random() * canvas.height,
-    size: 15,
-    color: "red",
-  };
+  return Object.assign({}, botConfig, {
+    x: Math.random() * (canvas.width - botConfig.size) + botConfig.size / 2,
+    y: Math.random() * (canvas.height - botConfig.size) + botConfig.size / 2,
+    size: botConfig.size,
+    color: botConfig.color,
+    hp: botConfig.hp,
+  });
 }
 
 // Movement
@@ -99,37 +126,73 @@ canvas.addEventListener("mousemove", (e) => {
 });
 
 function shoot() {
-  if (player.canShoot) {
-    // Calculate direction towards the mouse
+  const now = Date.now();
+
+  if (now - player.lastShotTime >= player.fireCooldown) {
     let dx = mouseX - player.x;
     let dy = mouseY - player.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     let normalizedDx = dx / distance;
     let normalizedDy = dy / distance;
 
-    // Adjust bullet starting position to be at the center of the player circle
-    const startX = player.x;
-    const startY = player.y;
+    if (player.weapon === "normal") {
+      player.bullets.push({
+        x: player.x,
+        y: player.y,
+        dx: normalizedDx * player.bulletSpeed,
+        dy: normalizedDy * player.bulletSpeed,
+        width: player.bulletWidth,
+        height: player.bulletHeight,
+        color: "red",
+        damage: 1,
+      });
+    } else if (player.weapon === "5hp") {
+      player.bullets.push({
+        x: player.x,
+        y: player.y,
+        dx: normalizedDx * player.bulletSpeed,
+        dy: normalizedDy * player.bulletSpeed,
+        width: player.bulletWidth,
+        height: player.bulletHeight,
+        color: "green",
+        damage: 5,
+      });
+    } else if (player.weapon === "slow") {
+      player.bullets.push({
+        x: player.x,
+        y: player.y,
+        dx: normalizedDx * (player.bulletSpeed / 2),
+        dy: normalizedDy * (player.bulletSpeed / 2),
+        width: player.bulletWidth,
+        height: player.bulletHeight,
+        color: "blue",
+        slow: true,
+        damage: 1,
+      });
+    } else if (player.weapon === "spread") {
+      for (let i = -2; i <= 2; i++) {
+        const angle = Math.atan2(dy, dx) + (i * Math.PI) / 12;
+        const spreadDx = Math.cos(angle);
+        const spreadDy = Math.sin(angle);
+        player.bullets.push({
+          x: player.x,
+          y: player.y,
+          dx: spreadDx * (player.bulletSpeed / 2),
+          dy: spreadDy * (player.bulletSpeed / 2),
+          width: player.bulletWidth,
+          height: player.bulletHeight,
+          color: "yellow",
+          damage: 2,
+        });
+      }
+    }
 
-    // Create bullet
-    player.bullets.push({
-      x: startX,
-      y: startY,
-      dx: normalizedDx * player.bulletSpeed, // Use normalized values for direction
-      dy: normalizedDy * player.bulletSpeed, // Use normalized values for direction
-      width: player.bulletWidth,
-      height: player.bulletHeight,
-      color: "red",
-    });
-
-    player.canShoot = false; // Tắt khả năng bắn
-    setTimeout(() => {
-      player.canShoot = true;
-    }, 100);
+    player.lastShotTime = now;
   }
 }
 
 function checkCollision(rect1, rect2) {
+  //check collision between 2 rectangle
   return !(
     rect1.x > rect2.x + rect2.width ||
     rect1.x + rect1.width < rect2.x ||
@@ -139,6 +202,7 @@ function checkCollision(rect1, rect2) {
 }
 
 function checkCircleRectCollision(circle, rect) {
+  //check collision between circle and rectangle
   const distX = Math.abs(circle.x - rect.x - rect.width / 2);
   const distY = Math.abs(circle.y - rect.y - rect.height / 2);
   if (
@@ -153,6 +217,7 @@ function checkCircleRectCollision(circle, rect) {
 }
 
 function update() {
+  if (weaponSelectWindow) return;
   // Lưu vị trí gốc của player
   let tempX = player.x;
   let tempY = player.y;
@@ -219,8 +284,8 @@ function update() {
       let distance = Math.sqrt(dx * dx + dy * dy);
 
       if (distance > 0) {
-        const moveX = (dx / distance) * botSpeed;
-        const moveY = (dy / distance) * botSpeed;
+        const moveX = (dx / distance) * (bot.speed || botConfig.speed);
+        const moveY = (dy / distance) * (bot.speed || botConfig.speed);
 
         let newX = bot.x + moveX;
         let newY = bot.y + moveY;
@@ -250,10 +315,10 @@ function update() {
         } else {
           // Nếu bị chặn hoàn toàn, thử trượt theo các hướng phụ
           const slideOffsets = [
-            { dx: 0, dy: botSpeed }, // trượt xuống
-            { dx: 0, dy: -botSpeed }, // trượt lên
-            { dx: botSpeed, dy: 0 }, // trượt phải
-            { dx: -botSpeed, dy: 0 }, // trượt trái
+            { dx: 0, dy: botConfig.speed }, // trượt xuống
+            { dx: 0, dy: -botConfig.speed }, // trượt lên
+            { dx: botConfig.speed, dy: 0 }, // trượt phải
+            { dx: -botConfig.speed, dy: 0 }, // trượt trái
           ];
 
           let moved = false;
@@ -292,40 +357,177 @@ function update() {
       }
     });
   }
+  if (bossActive) {
+    // Di chuyển boss (tránh va chạm vật cản và boss khác)
+    bosses.forEach((boss) => {
+      let dx = player.x - boss.x;
+      let dy = player.y - boss.y;
+      let distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance > 0) {
+        const moveX = (dx / distance) * bossConfig.speed;
+        const moveY = (dy / distance) * bossConfig.speed;
+
+        let newX = boss.x + moveX;
+        let newY = boss.y + moveY;
+
+        let collidedX = false;
+        let collidedY = false;
+
+        // Kiểm tra va chạm trục X và Y với các vật cản
+        for (const obs of obstacles) {
+          if (
+            checkCircleRectCollision(
+              { x: newX, y: boss.y, size: boss.size },
+              obs
+            )
+          )
+            collidedX = true;
+          if (
+            checkCircleRectCollision(
+              { x: boss.x, y: newY, size: boss.size },
+              obs
+            )
+          )
+            collidedY = true;
+        }
+
+        if (!collidedX && !collidedY) {
+          boss.x = newX;
+          boss.y = newY;
+        } else if (!collidedX) {
+          boss.x = newX;
+        } else if (!collidedY) {
+          boss.y = newY;
+        } else {
+          // Nếu bị chặn hoàn toàn, thử trượt theo các hướng phụ
+          const slideOffsets = [
+            { dx: 0, dy: bossConfig.speed }, // trượt xuống
+            { dx: 0, dy: -bossConfig.speed }, // trượt lên
+            { dx: bossConfig.speed, dy: 0 }, // trượt phải
+            { dx: -bossConfig.speed, dy: 0 }, // trượt trái
+          ];
+
+          let moved = false;
+
+          for (const offset of slideOffsets) {
+            const testX = boss.x + offset.dx;
+            const testY = boss.y + offset.dy;
+            let blocked = false;
+
+            for (const obs of obstacles) {
+              if (
+                checkCircleRectCollision(
+                  { x: testX, y: testY, size: boss.size },
+                  obs
+                )
+              ) {
+                blocked = true;
+                break;
+              }
+            }
+
+            if (!blocked) {
+              boss.x = testX;
+              boss.y = testY;
+              moved = true;
+              break;
+            }
+          }
+        }
+      }
+    });
+  }
 
   // Cập nhật đạn và xử lý va chạm với bot và vật cản
   player.bullets.forEach((bullet, bulletIndex) => {
-    bullet.x += bullet.dx;
-    bullet.y += bullet.dy;
+    if (gameState === "playing") {
+      bullet.x += bullet.dx;
+      bullet.y += bullet.dy;
 
-    // Loại bỏ đạn ra ngoài màn hình
-    if (
-      bullet.x < 0 ||
-      bullet.x > canvas.width ||
-      bullet.y < 0 ||
-      bullet.y > canvas.height
-    ) {
-      player.bullets.splice(bulletIndex, 1);
-    } else {
-      // Kiểm tra va chạm với bot
-      bots.forEach((bot, botIndex) => {
-        const dist = Math.sqrt(
-          Math.pow(bullet.x - bot.x, 2) + Math.pow(bullet.y - bot.y, 2)
-        );
-        if (dist < bot.size / 2) {
-          // Bot bị bắn
-          bots.splice(botIndex, 1);
-          player.score += 10; // Cộng điểm cho player
-          bots.push(createBot()); // Thêm bot mới
-          player.bullets.splice(bulletIndex, 1); // Xóa đạn sau khi bắn trúng
-        }
-      });
+      // Loại bỏ đạn ra ngoài màn hình
+      if (
+        bullet.x < 0 ||
+        bullet.x > canvas.width ||
+        bullet.y < 0 ||
+        bullet.y > canvas.height
+      ) {
+        player.bullets.splice(bulletIndex, 1);
+      } else {
+        // Kiểm tra va chạm với bot
+        bots.forEach((currentBot, botIndex) => {
+          const dist = Math.sqrt(
+            Math.pow(bullet.x - currentBot.x, 2) +
+              Math.pow(bullet.y - currentBot.y, 2)
+          );
+          if (dist < currentBot.size / 2) {
+            currentBot.hp -= bullet.damage || 1;
+            player.bullets.splice(bulletIndex, 1);
+            if (bullet.slow) {
+              currentBot.speed = 1;
+              currentBot.color = "#56C6E6";
+            }
 
-      // Kiểm tra va chạm đạn với vật cản
-      for (const obstacle of obstacles) {
-        if (checkCollision(bullet, obstacle)) {
-          player.bullets.splice(bulletIndex, 1); // Xóa đạn khi va chạm vật cản
-          return;
+            if (currentBot.hp <= 0) {
+              bots.splice(botIndex, 1);
+              player.score += 10;
+              if (player.score % 100 === 0) {
+                bossActive = true;
+                bosses.push({
+                  x:
+                    Math.random() * (canvas.width - bossConfig.size) +
+                    bossConfig.size / 2,
+                  y:
+                    Math.random() * (canvas.height - bossConfig.size) +
+                    bossConfig.size / 2,
+                  size: bossConfig.size,
+                  color: bossConfig.color,
+                  speed: bossConfig.speed, // Add speed property
+                  hp: 10,
+                });
+              } else {
+                bots.push(createBot());
+              }
+            }
+          }
+        });
+
+        // Kiểm tra va chạm với boss
+        bosses.forEach((currentBoss, bossIndex) => {
+          const dist = Math.sqrt(
+            Math.pow(bullet.x - currentBoss.x, 2) +
+              Math.pow(bullet.y - currentBoss.y, 2)
+          );
+          if (dist < currentBoss.size / 2) {
+            currentBoss.hp -= bullet.damage || 1;
+            player.bullets.splice(bulletIndex, 1);
+            if (bullet.slow) {
+              currentBoss.speed = 1;
+              currentBoss.color = "#56C6E6";
+            }
+            if (currentBoss.hp <= 0) {
+              bosses.splice(bossIndex, 1);
+              player.score += 100;
+              // Mở cửa sổ chọn vũ khí
+              weapons.length = 0; // Xóa các vũ khí cũ
+              weapons.push({ type: "5hp" }); // Thêm vũ khí mới
+              weapons.push({ type: "slow" });
+              weapons.push({ type: "spread" });
+              weaponSelectWindow = true;
+              player.weaponSelect = true;
+              clearInterval(autoShootInterval);
+              autoShootInterval = null;
+              bossActive = false;
+            }
+          }
+        });
+
+        // Kiểm tra va chạm đạn với vật cản
+        for (const obstacle of obstacles) {
+          if (checkCollision(bullet, obstacle)) {
+            player.bullets.splice(bulletIndex, 1); // Xóa đạn khi va chạm vật cản
+            return;
+          }
         }
       }
     }
@@ -344,7 +546,6 @@ function update() {
 
         if (player.lives <= 0) {
           gameState = "gameOver"; // Đặt trạng thái game là "gameOver"
-          player.isGameOver = true; // Đánh dấu là game over
           clearInterval(autoShootInterval); // Dừng auto shoot nếu có
           autoShootInterval = null;
           alert("Điểm của bạn: " + player.score);
@@ -352,7 +553,30 @@ function update() {
         } else {
           // Nếu còn mạng, xóa bot và tạo bot mới
           bots.splice(botIndex, 1);
-          bots.push(createBot());
+          player.score += 10; // Cộng điểm cho player
+          bots.push(createBot()); // Thêm bot mới
+        }
+      }
+    }
+  });
+
+  // Kiểm tra va chạm giữa player và bot
+  bosses.forEach((currentBoss, bossIndex) => {
+    const dist = Math.sqrt(
+      Math.pow(player.x - currentBoss.x, 2) +
+        Math.pow(player.y - currentBoss.y, 2)
+    );
+    if (dist < player.size / 2 + currentBoss.size / 2) {
+      if (!player.isUndead) {
+        player.lives--; // Giảm số mạng của người chơi
+        if (player.lives <= 0) {
+          gameState = "gameOver";
+          clearInterval(autoShootInterval);
+          autoShootInterval = null;
+          alert("Điểm của bạn: " + player.score);
+          resetGame();
+        } else {
+          bosses.splice(bossIndex, 1);
         }
       }
     }
@@ -370,49 +594,79 @@ function update() {
   }
 
   // Check for player collision with power-ups
+  // Power-ups collection
   powerUps.forEach((powerUp, index) => {
     const dist = Math.sqrt(
       Math.pow(player.x - powerUp.x, 2) + Math.pow(player.y - powerUp.y, 2)
     );
     if (dist < player.size / 2 + powerUp.size / 2) {
-      // Player collected power-up
-      player.powerUp = powerUp.type;
-      player.powerUpDuration = 3; // Set duration to 3 seconds
-      player.powerUpTimer = 0;
-      if (powerUp.type === "undead") {
-        player.lives;
-        player.isUndead = true;
-      } else if (powerUp.type === "speedBoost") {
-        player.speed += 2;
-      } else if (powerUp.type === "moreBullet") {
-        player.canShoot = false;
+      // Check if the power-up type already exists in activePowerUps
+      const existingPowerUpIndex = player.activePowerUps.findIndex(
+        (pu) => pu.type === powerUp.type
+      );
+
+      if (existingPowerUpIndex !== -1) {
+        // If the power-up type exists, reset its timer
+        player.activePowerUps[existingPowerUpIndex].timer = 0;
+      } else {
+        // If the power-up type doesn't exist, add it to the active list
+        player.activePowerUps.push({
+          type: powerUp.type,
+          timer: 0,
+          duration: 300, // seconds
+        });
+
+        // Apply immediate effect
+        if (powerUp.type === "speedBoost") {
+          player.speed += 2;
+        } else if (powerUp.type === "moreBullet") {
+          player.fireCooldown = 100;
+        } else if (powerUp.type === "unDead") {
+          player.isUndead = true;
+        }
       }
 
-      // console.log("player.powerUp: ", player.powerUp);
-
-      powerUps.splice(index, 1); // Remove power-up
+      powerUps.splice(index, 1); // Remove collected power-up
     }
   });
 
-  // Update power-up timer
-  if (player.powerUpDuration > 0) {
-    player.powerUpTimer += 1 / 60; // Assuming 60 FPS
-    if (player.powerUpTimer >= player.powerUpDuration) {
-      if (player.powerUp === "speedBoost") {
-        player.speed -= 2; // Revert speed boost
-      } else if (player.powerUp === "rapidFire") {
-        player.canShoot = true;
-      }
-      player.powerUp = null;
-      player.powerUpDuration = 0;
-      player.powerUpTimer = 0;
-      player.isUndead = false;
-
-      console.log("player.powerUp: ", player.powerUp);
-
-      powerUps.splice(index, 1); // Remove power-up
+  if (selectedWeapon) {
+    if (player.weaponSelect) {
+      player.weaponSelect = false;
     }
   }
+
+  if (selectedWeapon) {
+    player.weapon = selectedWeapon;
+    player.weaponDuration += 1 / 60;
+    if (player.weaponDuration >= 10) {
+      player.weapon = "normal";
+      player.weaponDuration = 0;
+      selectedWeapon = null;
+    }
+  }
+
+  // Power-up timer update and effect removal
+  player.activePowerUps = player.activePowerUps.filter((pu) => {
+    pu.timer += 1 / 60;
+
+    // Increase timer by 1 frame (assuming 60 FPS)
+
+    if (pu.timer >= pu.duration) {
+      // Revert the effect when time is up
+      if (pu.type === "speedBoost") {
+        player.speed -= 2;
+      } else if (pu.type === "moreBullet") {
+        player.fireCooldown = 500;
+      } else if (pu.type === "unDead") {
+        player.isUndead = false;
+      }
+
+      return false; // Remove the expired power-up
+    }
+
+    return true; // Keep the power-up active
+  });
 }
 
 function draw() {
@@ -430,6 +684,11 @@ function draw() {
   ctx.arc(player.x, player.y, player.size / 2, 0, Math.PI * 2);
   ctx.fill();
 
+  // Draw score
+  ctx.fillStyle = "white";
+  ctx.font = "20px Arial";
+  ctx.fillText("Score: " + player.score, 100, 30);
+
   // Draw player's lives
   ctx.fillStyle = "white";
   ctx.fillText("Lives: " + player.lives, 100, 60);
@@ -444,23 +703,81 @@ function draw() {
     ctx.font = "10px Arial";
     ctx.textAlign = "center";
     if (powerUp.type === "unDead") {
-      ctx.fillText("UD", powerUp.x, powerUp.y + 3); 
+      ctx.fillText("UD", powerUp.x, powerUp.y + 3);
     } else if (powerUp.type === "speedBoost") {
       ctx.fillText("SB", powerUp.x, powerUp.y + 3);
     } else if (powerUp.type === "moreBullet")
       ctx.fillText("MB", powerUp.x, powerUp.y + 3);
   });
+  // Draw weapons
 
-  // Draw power-up duration bar
-  if (player.powerUpDuration > 0) {
+  // Draw weapon select window
+  if (weaponSelectWindow && weapons.length > 0) {
+    const weaponButtonWidth = 80;
+    const weaponButtonHeight = 30;
+    const weaponButtonSpacing = 10;
+    const startX =
+      canvas.width / 2 -
+      (weaponButtonWidth * weapons.length +
+        weaponButtonSpacing * (weapons.length - 1)) /
+        2;
+    const startY = canvas.height / 2 + 40;
+    weapons.forEach((weapon, index) => {
+      const buttonX =
+        startX + index * (weaponButtonWidth + weaponButtonSpacing);
+      const buttonY = startY;
+      ctx.fillStyle = "orange";
+      ctx.fillRect(buttonX, buttonY, weaponButtonWidth, weaponButtonHeight);
+      ctx.fillStyle = "black";
+      ctx.font = "15px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(
+        weapon.type,
+        buttonX + weaponButtonWidth / 2,
+        buttonY + weaponButtonHeight / 2 + 5
+      );
+      canvas.addEventListener("click", (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+        if (
+          mouseX >= buttonX &&
+          mouseX <= buttonX + weaponButtonWidth &&
+          mouseY >= buttonY &&
+          mouseY <= buttonY + weaponButtonHeight
+        ) {
+          selectedWeapon = weapon.type;
+          weaponSelectWindow = false;
+          player.speed = 5;
+          botsActive = true;
+          autoShootInterval = setInterval(shoot, 100);
+        }
+      });
+    });
+  }
+
+  let barY = 100; // Starting Y position for the first bar
+  const barHeight = 10;
+  const barWidth = 100;
+  const barSpacing = 15; // Space between bars
+
+  for (const pu of player.activePowerUps) {
+    // Draw background bar (empty)
     ctx.fillStyle = "white";
-    ctx.fillRect(200, 40, 100, 10);
+    ctx.fillRect(250, barY, barWidth, barHeight);
+
+    // Draw power-up progress bar (filled)
     ctx.fillStyle = "green";
-    const barWidth = (player.powerUpTimer / player.powerUpDuration) * 100;
-    ctx.fillRect(200, 40, barWidth, 10);
+    const currentBarWidth = (pu.timer / pu.duration) * barWidth;
+    ctx.fillRect(250, barY, currentBarWidth, barHeight);
+
+    // Draw power-up type text, adjust to center vertically with the bar
     ctx.fillStyle = "white";
-    ctx.font = "10px Arial";
-    ctx.fillText(player.powerUp, 100, 35);
+    ctx.font = "20px Arial";
+    ctx.textAlign = "start";
+    ctx.fillText(pu.type, 100, barY + barHeight / 2 + 7); // Center text vertically
+
+    barY += barHeight + barSpacing; // Move to the next Y position for the next bar
   }
 
   // Hiển thị countdown khi trò chơi đang ở trạng thái 'start' hoặc 'playing'
@@ -497,10 +814,15 @@ function draw() {
     ctx.fill();
   });
 
+  // Draw bosses
+  bosses.forEach((currentBoss) => {
+    ctx.fillStyle = currentBoss.color;
+    ctx.beginPath();
+    ctx.arc(currentBoss.x, currentBoss.y, currentBoss.size / 2, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
   // Draw score
-  ctx.fillStyle = "white";
-  ctx.font = "20px Arial";
-  ctx.fillText("Score: " + player.score, 100, 30);
 }
 function resetGame() {
   // Reset player state
@@ -510,15 +832,21 @@ function resetGame() {
   player.y = canvas.height / 2;
   player.lives = 3;
   player.score = 0;
-  player.isGameOver = false;
   player.bullets = [];
+  player.activePowerUps = [];
   gameState = "start";
   startButton.style.display = "block";
+  player.weaponSelect = false;
+  bossActive = false;
+  weapons.length = 0;
   powerUps.length = 0;
   clearInterval(powerUpInterval);
   powerUpInterval = null;
   player.speed = 5;
+  bosses.length = 0;
 
+  selectedWeaponIndex = null;
+  weaponSelectWindow = false;
   botsActive = false;
 
   // Reset bots
@@ -535,16 +863,19 @@ function resetGame() {
   autoShootInterval = null;
 
   // Reset countdown
-  countdown = 5;
+  countdown = 3;
   clearInterval(countdownInterval);
   countdownInterval = null;
 }
 
 function startGame() {
+  player.isUndead = true;
   gameState = "playing";
-  countdown = 5; // Reset countdown
+  countdown = 3; // Reset countdown
   botsActive = false;
   startButton.style.display = "none"; // Ẩn nút start khi game bắt đầu
+  player.speed = 0; // dừng player
+  player.activePowerUps = [];
 
   // Tạo countdown, sau khi countdown về 0 thì bắt đầu spawn bot
   countdownInterval = setInterval(() => {
@@ -553,8 +884,10 @@ function startGame() {
       clearInterval(countdownInterval);
       countdownInterval = null;
       countdown = 0;
+      player.speed = 5;
       botsActive = true; // Bắt đầu cho phép bot xuất hiện
       for (let i = 0; i < numBots; i++) {
+        bossActive = false;
         bots.push(createBot()); // Tạo bot khi đếm ngược kết thúc
       }
     }
