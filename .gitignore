@@ -1,0 +1,24 @@
+# Bỏ qua node_modules
+node_modules/
+
+# Bỏ log file
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Bỏ file môi trường
+.env
+.env.local
+.env.*.local
+
+# Bỏ cache
+.cache/
+dist/
+build/
+
+# VS Code settings
+.vscode/
+
+# Mac & system files
+.DS_Store
+Thumbs.db
