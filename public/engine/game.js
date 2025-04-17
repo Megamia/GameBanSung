@@ -2,6 +2,10 @@ import { player } from "../entities/player.js";
 import { botConfig, createBot } from "../entities/bot.js";
 import { bossConfig } from "../entities/boss.js";
 import { obstacles } from "../entities/obstacles.js";
+import { weaponTypes, weapon } from "../entities/weapon.js";
+import { powerUps, handlePowerUps } from "../entities/power.js";
+import { checkCircleRectCollision } from "../utils/collide.js";
+import { checkCollision } from "../utils/collision.js";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -9,8 +13,8 @@ const ctx = canvas.getContext("2d");
 let gameState = "start";
 let countdown = 3;
 let countdownInterval;
+let powerUpInterval = null;
 
-// Start butt
 const startButton = document.createElement("button");
 
 // Mouse position
@@ -26,36 +30,14 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
-// Boss configuration
-
 const bosses = [];
 let bossActive = false;
 let autoShootInterval;
 const bots = [];
 const numBots = 5;
-const weaponTypes = ["5hp", "slow", "spread"]; // Các loại vũ khí
-const weapon = {
-  x: 0,
-  y: 0,
-  size: 20,
-  type: "",
-}; // Đối tượng vũ khí
+
 let weaponSelectWindow = false;
 let botsActive = false;
-
-// Power-ups
-const powerUps = [];
-const powerUpTypes = ["unDead", "speedBoost", "moreBullet"];
-let powerUpInterval;
-
-function createPowerUp() {
-  return {
-    x: Math.random() * canvas.width,
-    y: Math.random() * canvas.height,
-    size: 20,
-    type: powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)],
-  };
-}
 
 let selectedWeapon = null;
 let selectedWeaponIndex = null;
@@ -143,34 +125,10 @@ function shoot() {
   }
 }
 
-function checkCollision(rect1, rect2) {
-  //check collision between 2 rectangle
-  return !(
-    rect1.x > rect2.x + rect2.width ||
-    rect1.x + rect1.width < rect2.x ||
-    rect1.y > rect2.y + rect2.height ||
-    rect1.y + rect1.height < rect2.y
-  );
-}
-
-function checkCircleRectCollision(circle, rect) {
-  //check collision between circle and rectangle
-  const distX = Math.abs(circle.x - rect.x - rect.width / 2);
-  const distY = Math.abs(circle.y - rect.y - rect.height / 2);
-  if (
-    distX > rect.width / 2 + circle.size / 2 ||
-    distY > rect.height / 2 + circle.size / 2
-  )
-    return false;
-  if (distX <= rect.width / 2 || distY <= rect.height / 2) return true;
-  const dx = distX - rect.width / 2;
-  const dy = distY - rect.height / 2;
-  return dx * dx + dy * dy <= (circle.size / 2) * (circle.size / 2);
-}
+handlePowerUps(gameState, countdown, powerUpInterval, weaponSelectWindow);
 
 function update() {
   if (weaponSelectWindow) return;
-  // Lưu vị trí gốc của player
   let tempX = player.x;
   let tempY = player.y;
 
@@ -423,7 +381,7 @@ function update() {
             if (currentBot.hp <= 0) {
               bots.splice(botIndex, 1);
               player.score += 10;
-              if (player.score % 100 === 0) {
+              if (player.score % 30 === 0) {
                 bossActive = true;
                 bosses.push({
                   x:
@@ -535,53 +493,6 @@ function update() {
   });
 
   // Power-up logic
-  console.log(powerUpInterval);
-
-  if (gameState === "playing" && !countdown) {
-    if (!powerUpInterval) {
-      powerUpInterval = setInterval(() => {
-        if (gameState === "playing") {
-          powerUps.push(createPowerUp());
-        }
-      }, 1000);
-    }
-  }
-
-  // Power-ups collection
-  powerUps.forEach((powerUp, index) => {
-    const dist = Math.sqrt(
-      Math.pow(player.x - powerUp.x, 2) + Math.pow(player.y - powerUp.y, 2)
-    );
-    if (dist < player.size / 2 + powerUp.size / 2) {
-      // Check if the power-up type already exists in activePowerUps
-      const existingPowerUpIndex = player.activePowerUps.findIndex(
-        (pu) => pu.type === powerUp.type
-      );
-
-      if (existingPowerUpIndex !== -1) {
-        // If the power-up type exists, reset its timer
-        player.activePowerUps[existingPowerUpIndex].timer = 0;
-      } else {
-        // If the power-up type doesn't exist, add it to the active list
-        player.activePowerUps.push({
-          type: powerUp.type,
-          timer: 0,
-          duration: 300, // seconds
-        });
-
-        // Apply immediate effect
-        if (powerUp.type === "speedBoost") {
-          player.speed += 2;
-        } else if (powerUp.type === "moreBullet") {
-          player.fireCooldown = 100;
-        } else if (powerUp.type === "unDead") {
-          player.isUndead = true;
-        }
-      }
-
-      powerUps.splice(index, 1); // Remove collected power-up
-    }
-  });
 
   if (selectedWeapon) {
     if (player.weaponSelect) {
