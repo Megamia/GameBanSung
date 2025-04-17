@@ -1,7 +1,12 @@
+import { createPlayer } from "../entities/player.js";
+
+import { obstacles } from "../entities/obstacles.js";
+
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// Game state
+const player = createPlayer(canvas);
+
 let gameState = "start"; // "start", "playing", "gameOver"
 let countdown = 3;
 let countdownInterval;
@@ -23,26 +28,6 @@ resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
 // Player
-const player = {
-  x: canvas.width / 2,
-  y: canvas.height / 2,
-  size: 20,
-  speed: 5,
-  color: "blue",
-  bullets: [],
-  bulletSpeed: 10,
-  bulletWidth: 5, // Increased bullet width
-  bulletHeight: 20, // Increased bullet height
-  canShoot: true,
-  score: 0,
-  lives: 3,
-  fireCooldown: 20, // ms
-  lastShotTime: 0,
-  activePowerUps: [],
-  weapon: "normal",
-  weaponSelect: false,
-  weaponDuration: 0,
-};
 
 // Bot configuration
 const botConfig = {
@@ -60,14 +45,7 @@ const bossConfig = {
   color: "purple",
 };
 
-// Obstacles
-const obstacles = [
-  { x: 200, y: 200, width: 100, height: 20, color: "gray" },
-  { x: 400, y: 300, width: 20, height: 150, color: "gray" },
-  { x: 600, y: 100, width: 150, height: 20, color: "gray" },
-  { x: 700, y: 400, width: 20, height: 100, color: "gray" },
-  { x: 100, y: 500, width: 100, height: 20, color: "gray" },
-];
+
 const bosses = [];
 let bossActive = false;
 let autoShootInterval;
