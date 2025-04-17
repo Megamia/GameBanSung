@@ -1,3 +1,4 @@
+const canvas = document.getElementById("gameCanvas");
 export const createPlayer = (canvas) => {
   return {
     x: canvas.width / 1.5,
@@ -20,3 +21,5 @@ export const createPlayer = (canvas) => {
     weaponDuration: 0,
   };
 };
+
+export const player = createPlayer(canvas);
