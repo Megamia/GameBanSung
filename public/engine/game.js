@@ -1,11 +1,12 @@
-import { player, createPlayer } from "../entities/player.js";
-
+import { player } from "../entities/player.js";
+import { botConfig, createBot } from "../entities/bot.js";
+import { bossConfig } from "../entities/boss.js";
 import { obstacles } from "../entities/obstacles.js";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-let gameState = "start"; // "start", "playing", "gameOver"
+let gameState = "start";
 let countdown = 3;
 let countdownInterval;
 
@@ -25,23 +26,7 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
-// Player
-
-// Bot configuration
-const botConfig = {
-  size: 15,
-  color: "red",
-  hp: 3,
-  speed: 3,
-};
-
 // Boss configuration
-const bossConfig = {
-  speed: 2,
-  hp: 100000,
-  size: 40,
-  color: "purple",
-};
 
 const bosses = [];
 let bossActive = false;
@@ -71,18 +56,10 @@ function createPowerUp() {
     type: powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)],
   };
 }
+
 let selectedWeapon = null;
 let selectedWeaponIndex = null;
 const weapons = [];
-function createBot() {
-  return Object.assign({}, botConfig, {
-    x: Math.random() * (canvas.width - botConfig.size) + botConfig.size / 2,
-    y: Math.random() * (canvas.height - botConfig.size) + botConfig.size / 2,
-    size: botConfig.size,
-    color: botConfig.color,
-    hp: botConfig.hp,
-  });
-}
 
 // Movement
 const keys = {};
@@ -558,6 +535,8 @@ function update() {
   });
 
   // Power-up logic
+  console.log(powerUpInterval);
+
   if (gameState === "playing" && !countdown) {
     if (!powerUpInterval) {
       powerUpInterval = setInterval(() => {
@@ -568,7 +547,6 @@ function update() {
     }
   }
 
-  // Check for player collision with power-ups
   // Power-ups collection
   powerUps.forEach((powerUp, index) => {
     const dist = Math.sqrt(
