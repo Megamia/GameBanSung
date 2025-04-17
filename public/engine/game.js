@@ -1,11 +1,9 @@
-import { createPlayer } from "../entities/player.js";
+import { player, createPlayer } from "../entities/player.js";
 
 import { obstacles } from "../entities/obstacles.js";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-
-const player = createPlayer(canvas);
 
 let gameState = "start"; // "start", "playing", "gameOver"
 let countdown = 3;
@@ -44,7 +42,6 @@ const bossConfig = {
   size: 40,
   color: "purple",
 };
-
 
 const bosses = [];
 let bossActive = false;
