@@ -10,17 +10,17 @@ import { draw } from "./draw.js";
 import { canvas, ctx } from "./canvas.js";
 
 export const player = createPlayer();
+export const state = {
+  weaponSelectWindow: false,
+};
 let gameState = "start";
 let countdown = 3;
 let countdownInterval;
 
-
 shoot();
 
 const startButton = document.createElement("button");
-// Mouse position
 
-// Set canvas size
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -35,15 +35,10 @@ let autoShootInterval;
 const bots = [];
 const numBots = 5;
 
-export const state = {
-  weaponSelectWindow: false,
-};
-
 let botsActive = false;
 
 const weapons = [];
 
-// Movement
 const keys = {};
 document.addEventListener("keydown", (e) => {
   keys[e.key] = true;
@@ -58,17 +53,14 @@ function update() {
   let tempX = player.x;
   let tempY = player.y;
 
-  // Di chuyển theo trục X
   if (keys["a"] || keys["ArrowLeft"]) player.x -= player.speed;
   if (keys["d"] || keys["ArrowRight"]) player.x += player.speed;
 
-  // Giới hạn trong canvas
   player.x = Math.max(
     player.size / 2,
     Math.min(canvas.width - player.size / 2, player.x)
   );
 
-  // Kiểm tra va chạm trục X
   for (const obstacle of obstacles) {
     if (
       checkCircleRectCollision(
@@ -81,17 +73,14 @@ function update() {
     }
   }
 
-  // Di chuyển theo trục Y
   if (keys["w"] || keys["ArrowUp"]) player.y -= player.speed;
   if (keys["s"] || keys["ArrowDown"]) player.y += player.speed;
 
-  // Giới hạn trong canvas
   player.y = Math.max(
     player.size / 2,
     Math.min(canvas.height - player.size / 2, player.y)
   );
 
-  // Kiểm tra va chạm trục Y
   let collidedY = false;
   for (const obstacle of obstacles) {
     if (
@@ -106,14 +95,12 @@ function update() {
     }
   }
 
-  // Auto shoot chỉ khi không va chạm
   if (gameState === "playing") {
     if (!autoShootInterval) {
-      autoShootInterval = setInterval(shoot, 100); // Bắn liên tục
+      autoShootInterval = setInterval(shoot, 100);
     }
   }
   if (botsActive) {
-    // Di chuyển bot (tránh va chạm vật cản và bot khác)
     bots.forEach((bot) => {
       let dx = player.x - bot.x;
       let dy = player.y - bot.y;
@@ -129,7 +116,6 @@ function update() {
         let collidedX = false;
         let collidedY = false;
 
-        // Kiểm tra va chạm trục X và Y với các vật cản
         for (const obs of obstacles) {
           if (
             checkCircleRectCollision({ x: newX, y: bot.y, size: bot.size }, obs)
@@ -149,12 +135,11 @@ function update() {
         } else if (!collidedY) {
           bot.y = newY;
         } else {
-          // Nếu bị chặn hoàn toàn, thử trượt theo các hướng phụ
           const slideOffsets = [
-            { dx: 0, dy: botConfig.speed }, // trượt xuống
-            { dx: 0, dy: -botConfig.speed }, // trượt lên
-            { dx: botConfig.speed, dy: 0 }, // trượt phải
-            { dx: -botConfig.speed, dy: 0 }, // trượt trái
+            { dx: 0, dy: botConfig.speed },
+            { dx: 0, dy: -botConfig.speed },
+            { dx: botConfig.speed, dy: 0 },
+            { dx: -botConfig.speed, dy: 0 },
           ];
 
           let moved = false;
@@ -184,7 +169,6 @@ function update() {
             }
           }
 
-          // Nếu vẫn bị kẹt hoàn toàn, lắc nhẹ để tìm đường
           if (!moved) {
             bot.x += (Math.random() - 0.5) * 2;
             bot.y += (Math.random() - 0.5) * 2;
@@ -194,7 +178,6 @@ function update() {
     });
   }
   if (bossActive) {
-    // Di chuyển boss (tránh va chạm vật cản và boss khác)
     bosses.forEach((boss) => {
       let dx = player.x - boss.x;
       let dy = player.y - boss.y;
@@ -210,7 +193,6 @@ function update() {
         let collidedX = false;
         let collidedY = false;
 
-        // Kiểm tra va chạm trục X và Y với các vật cản
         for (const obs of obstacles) {
           if (
             checkCircleRectCollision(
@@ -236,12 +218,11 @@ function update() {
         } else if (!collidedY) {
           boss.y = newY;
         } else {
-          // Nếu bị chặn hoàn toàn, thử trượt theo các hướng phụ
           const slideOffsets = [
-            { dx: 0, dy: bossConfig.speed }, // trượt xuống
-            { dx: 0, dy: -bossConfig.speed }, // trượt lên
-            { dx: bossConfig.speed, dy: 0 }, // trượt phải
-            { dx: -bossConfig.speed, dy: 0 }, // trượt trái
+            { dx: 0, dy: bossConfig.speed },
+            { dx: 0, dy: -bossConfig.speed },
+            { dx: bossConfig.speed, dy: 0 },
+            { dx: -bossConfig.speed, dy: 0 },
           ];
 
           let moved = false;
@@ -275,13 +256,11 @@ function update() {
     });
   }
 
-  // Cập nhật đạn và xử lý va chạm với bot và vật cản
   player.bullets.forEach((bullet, bulletIndex) => {
     if (gameState === "playing") {
       bullet.x += bullet.dx;
       bullet.y += bullet.dy;
 
-      // Loại bỏ đạn ra ngoài màn hình
       if (
         bullet.x < 0 ||
         bullet.x > canvas.width ||
@@ -290,7 +269,6 @@ function update() {
       ) {
         player.bullets.splice(bulletIndex, 1);
       } else {
-        // Kiểm tra va chạm với bot
         bots.forEach((currentBot, botIndex) => {
           const dist = Math.sqrt(
             Math.pow(bullet.x - currentBot.x, 2) +
@@ -300,7 +278,7 @@ function update() {
             currentBot.hp -= bullet.damage || 1;
             player.bullets.splice(bulletIndex, 1);
             if (bullet.slow) {
-              currentBot.speed = 1;
+              currentBot.speed = botConfig.speed - 0.5;
               currentBot.color = "#56C6E6";
             }
 
@@ -309,18 +287,20 @@ function update() {
               player.score += 10;
               if (player.score % 30 === 0) {
                 bossActive = true;
-                bosses.push({
-                  x:
-                    Math.random() * (canvas.width - bossConfig.size) +
-                    bossConfig.size / 2,
-                  y:
-                    Math.random() * (canvas.height - bossConfig.size) +
-                    bossConfig.size / 2,
-                  size: bossConfig.size,
-                  color: bossConfig.color,
-                  speed: bossConfig.speed, // Add speed property
-                  hp: 10,
-                });
+                if (bosses.length < 1) {
+                  bosses.push({
+                    x:
+                      Math.random() * (canvas.width - bossConfig.size) +
+                      bossConfig.size / 2,
+                    y:
+                      Math.random() * (canvas.height - bossConfig.size) +
+                      bossConfig.size / 2,
+                    size: bossConfig.size,
+                    color: bossConfig.color,
+                    speed: bossConfig.speed,
+                    hp: bossConfig.hp,
+                  });
+                }
               } else {
                 bots.push(createBot());
               }
@@ -328,7 +308,6 @@ function update() {
           }
         });
 
-        // Kiểm tra va chạm với boss
         bosses.forEach((currentBoss, bossIndex) => {
           const dist = Math.sqrt(
             Math.pow(bullet.x - currentBoss.x, 2) +
@@ -338,30 +317,31 @@ function update() {
             currentBoss.hp -= bullet.damage || 1;
             player.bullets.splice(bulletIndex, 1);
             if (bullet.slow) {
-              currentBoss.speed = 1;
+              currentBoss.speed = bossConfig.speed - 0.5;
               currentBoss.color = "#56C6E6";
             }
             if (currentBoss.hp <= 0) {
               bosses.splice(bossIndex, 1);
               player.score += 100;
-              // Mở cửa sổ chọn vũ khí
-              weapons.length = 0; // Xóa các vũ khí cũ
-              weapons.push({ type: "5hp" }); // Thêm vũ khí mới
+              bossActive = false;
+              for (let i = 0; i < numBots; i++) {
+                bots.push(createBot());
+              }
+              weapons.length = 0;
+              weapons.push({ type: "5hp" });
               weapons.push({ type: "slow" });
               weapons.push({ type: "spread" });
               state.weaponSelectWindow = true;
               player.weaponSelect = true;
               clearInterval(autoShootInterval);
               autoShootInterval = null;
-              bossActive = false;
             }
           }
         });
 
-        // Kiểm tra va chạm đạn với vật cản
         for (const obstacle of obstacles) {
           if (checkCollision(bullet, obstacle)) {
-            player.bullets.splice(bulletIndex, 1); // Xóa đạn khi va chạm vật cản
+            player.bullets.splice(bulletIndex, 1);
             return;
           }
         }
@@ -369,7 +349,6 @@ function update() {
     }
   });
 
-  // Kiểm tra va chạm giữa player và bot
   bots.forEach((bot, botIndex) => {
     const dist = Math.sqrt(
       Math.pow(player.x - bot.x, 2) + Math.pow(player.y - bot.y, 2)
@@ -377,26 +356,23 @@ function update() {
 
     if (dist < player.size / 2 + bot.size / 2) {
       if (!player.isUndead) {
-        // Nếu không phải undead mới trừ mạng
-        player.lives--; // Giảm số mạng của người chơi
+        player.lives--;
 
         if (player.lives <= 0) {
-          gameState = "gameOver"; // Đặt trạng thái game là "gameOver"
-          clearInterval(autoShootInterval); // Dừng auto shoot nếu có
+          gameState = "gameOver";
+          clearInterval(autoShootInterval);
           autoShootInterval = null;
           alert("Điểm của bạn: " + player.score);
           resetGame();
         } else {
-          // Nếu còn mạng, xóa bot và tạo bot mới
           bots.splice(botIndex, 1);
-          player.score += 10; // Cộng điểm cho player
-          bots.push(createBot()); // Thêm bot mới
+          player.score += 10;
+          bots.push(createBot());
         }
       }
     }
   });
 
-  // Kiểm tra va chạm giữa player và bot
   bosses.forEach((currentBoss, bossIndex) => {
     const dist = Math.sqrt(
       Math.pow(player.x - currentBoss.x, 2) +
@@ -404,7 +380,7 @@ function update() {
     );
     if (dist < player.size / 2 + currentBoss.size / 2) {
       if (!player.isUndead) {
-        player.lives--; // Giảm số mạng của người chơi
+        player.lives--;
         if (player.lives <= 0) {
           gameState = "gameOver";
           clearInterval(autoShootInterval);
@@ -418,34 +394,17 @@ function update() {
     }
   });
 
-  // if (selectedWeapon) {
-  //   player.weapon = weapons;
-  //   if (player.weaponSelect) {
-  //     player.weaponSelect = false;
-  //     player.weaponDuration = 0;
-  //     selectedWeapon = null;
-  //     setTimeout(() => {
-  //       player.weapon = "normal";
-  //     }, 10000);
-  //   }
-  // }
-
-  // Power-up timer update and effect removal
   player.activePowerUps.forEach((pu, index) => {
-    pu.timer += 1 / 60; // Tăng theo mỗi frame (60 FPS)
+    pu.timer += 1 / 60;
 
     if (pu.timer >= pu.duration) {
-      // Hết thời gian power-up
       if (pu.type === "speedBoost") {
-        player.speed -= 2; // Giảm tốc độ khi hết thời gian power-up
+        player.speed -= 2;
       } else if (pu.type === "moreBullet") {
-        player.fireCooldown = 500; // Quay lại cooldown bình thường
-      }
-      // Nếu power-up là undead, cần phục hồi lại tình trạng sống
-      else if (pu.type === "unDead") {
+        player.fireCooldown = 500;
+      } else if (pu.type === "unDead") {
         player.isUndead = false;
       }
-      // Loại bỏ power-up đã hết hạn
       player.activePowerUps.splice(index, 1);
     }
   });
@@ -466,8 +425,6 @@ function resetGame() {
   bossActive = false;
   weapons.length = 0;
   powerUps.length = 0;
-  // clearInterval(powerUpInterval);
-  // powerUpInterval = null;
   player.speed = 5;
   bosses.length = 0;
 
@@ -488,7 +445,7 @@ function resetGame() {
 }
 
 function startGame() {
-  player.isUndead = true;
+  player.isUndead = false;
   gameState = "playing";
   countdown = 3;
   botsActive = false;
@@ -574,7 +531,6 @@ function gameLoop() {
       bots,
       bosses,
       weapons,
-      // selectedWeapon,
       countdown,
       botsActive,
       autoShootInterval
@@ -589,7 +545,6 @@ function gameLoop() {
       bots,
       bosses,
       weapons,
-      // selectedWeapon,
       countdown,
       botsActive,
       autoShootInterval

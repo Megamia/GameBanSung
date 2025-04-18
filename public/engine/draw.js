@@ -20,28 +20,23 @@ export function draw(
 ) {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  // Draw obstacles
   obstacles.forEach((obstacle) => {
     ctx.fillStyle = obstacle.color;
     ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
   });
 
-  // Draw player
   ctx.fillStyle = player.color;
   ctx.beginPath();
   ctx.arc(player.x, player.y, player.size / 2, 0, Math.PI * 2);
   ctx.fill();
 
-  // Draw score
   ctx.fillStyle = "white";
   ctx.font = "20px Arial";
   ctx.fillText("Score: " + player.score, 100, 30);
 
-  // Draw player's lives
   ctx.fillStyle = "white";
   ctx.fillText("Lives: " + player.lives, 100, 60);
 
-  // Draw power-ups
   powerUps.forEach((powerUp) => {
     ctx.fillStyle = "yellow";
     ctx.beginPath();
@@ -57,9 +52,7 @@ export function draw(
     } else if (powerUp.type === "moreBullet")
       ctx.fillText("MB", powerUp.x, powerUp.y + 3);
   });
-  // Draw weapons
 
-  // Draw weapon select window
   if (state.weaponSelectWindow && weapons.length > 0) {
     const weaponButtonWidth = 80;
     const weaponButtonHeight = 30;
@@ -105,31 +98,27 @@ export function draw(
     });
   }
 
-  let barY = 100; // Starting Y position for the first bar
+  let barY = 100; 
   const barHeight = 10;
   const barWidth = 100;
-  const barSpacing = 15; // Space between bars
+  const barSpacing = 15; 
 
   for (const pu of player.activePowerUps) {
-    // Draw background bar (empty)
     ctx.fillStyle = "white";
     ctx.fillRect(250, barY, barWidth, barHeight);
 
-    // Draw power-up progress bar (filled)
     ctx.fillStyle = "green";
     const currentBarWidth = (pu.timer / pu.duration) * barWidth;
     ctx.fillRect(250, barY, currentBarWidth, barHeight);
 
-    // Draw power-up type text, adjust to center vertically with the bar
     ctx.fillStyle = "white";
     ctx.font = "20px Arial";
     ctx.textAlign = "start";
-    ctx.fillText(pu.type, 100, barY + barHeight / 2 + 7); // Center text vertically
+    ctx.fillText(pu.type, 100, barY + barHeight / 2 + 7);
 
-    barY += barHeight + barSpacing; // Move to the next Y position for the next bar
+    barY += barHeight + barSpacing;
   }
 
-  // Hiển thị countdown khi trò chơi đang ở trạng thái 'start' hoặc 'playing'
   if (gameState === "start" || (gameState === "playing" && countdown > 0)) {
     ctx.font = "200px Arial";
     ctx.fillText(countdown, canvas.width / 2, canvas.height / 2 + 50);
@@ -140,9 +129,8 @@ export function draw(
 
     ctx.translate(bullet.x, bullet.y);
 
-    // Tính góc và xoay thêm 90 độ để đạn thẳng hướng (vì đạn dài theo trục y)
     const angle = Math.atan2(bullet.dy, bullet.dx);
-    ctx.rotate(angle + Math.PI / 2); // ⬅️ xoay thêm 90 độ
+    ctx.rotate(angle + Math.PI / 2); 
 
     ctx.fillStyle = bullet.color;
     ctx.fillRect(
@@ -155,7 +143,6 @@ export function draw(
     ctx.restore();
   });
 
-  // Draw bots
   bots.forEach((bot) => {
     ctx.fillStyle = bot.color;
     ctx.beginPath();
@@ -163,7 +150,6 @@ export function draw(
     ctx.fill();
   });
 
-  // Draw bosses
   bosses.forEach((currentBoss) => {
     ctx.fillStyle = currentBoss.color;
     ctx.beginPath();

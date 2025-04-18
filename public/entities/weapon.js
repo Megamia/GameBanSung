@@ -1,4 +1,4 @@
-import { player } from "../engine/game.js";
+import { player, state } from "../engine/game.js";
 import { canvas } from "../engine/canvas.js";
 import { selectedWeapon } from "../engine/draw.js";
 let mouseX = 0;
@@ -14,9 +14,15 @@ export const weapon = {
   y: 0,
   size: 20,
   type: "",
+  bulletSpeed: 10,
+  bulletWidth: 5,
+  bulletHeight: 20,
 };
 
 export function shoot() {
+  if (state.weaponSelectWindow) {
+    return;
+  }
   const now = Date.now();
 
   if (now - player.lastShotTime >= player.fireCooldown) {
@@ -26,32 +32,30 @@ export function shoot() {
     let normalizedDx = dx / distance;
     let normalizedDy = dy / distance;
 
-    // Cập nhật vũ khí của player nếu có sự thay đổi
-    if (selectedWeapon) {
+    if (selectedWeapon && selectedWeapon !== player.weapon) {
       player.weapon = selectedWeapon;
-      // selectedWeapon = null; // Đặt lại selectedWeapon để tránh giữ vũ khí cũ
+      resetPlayerWeaponStats(); 
     }
 
-    // Xử lý bắn theo từng loại vũ khí
     if (player.weapon === "normal") {
       player.bullets.push({
         x: player.x,
         y: player.y,
-        dx: normalizedDx * player.bulletSpeed,
-        dy: normalizedDy * player.bulletSpeed,
-        width: player.bulletWidth,
-        height: player.bulletHeight,
+        dx: normalizedDx * weapon.bulletSpeed,
+        dy: normalizedDy * weapon.bulletSpeed,
+        width: weapon.bulletWidth,
+        height: weapon.bulletHeight,
         color: "red",
-        damage: 1,
+        damage: 3,
       });
     } else if (player.weapon === "5hp") {
       player.bullets.push({
         x: player.x,
         y: player.y,
-        dx: normalizedDx * player.bulletSpeed,
-        dy: normalizedDy * player.bulletSpeed,
-        width: player.bulletWidth,
-        height: player.bulletHeight,
+        dx: normalizedDx * weapon.bulletSpeed,
+        dy: normalizedDy * weapon.bulletSpeed,
+        width: weapon.bulletWidth,
+        height: weapon.bulletHeight,
         color: "green",
         damage: 5,
       });
@@ -59,13 +63,13 @@ export function shoot() {
       player.bullets.push({
         x: player.x,
         y: player.y,
-        dx: normalizedDx * (player.bulletSpeed / 2),
-        dy: normalizedDy * (player.bulletSpeed / 2),
-        width: player.bulletWidth,
-        height: player.bulletHeight,
+        dx: normalizedDx * weapon.bulletSpeed,
+        dy: normalizedDy * weapon.bulletSpeed,
+        width: weapon.bulletWidth,
+        height: weapon.bulletHeight,
         color: "blue",
         slow: true,
-        damage: 1,
+        damage: 2,
       });
     } else if (player.weapon === "spread") {
       for (let i = -2; i <= 2; i++) {
@@ -75,15 +79,26 @@ export function shoot() {
         player.bullets.push({
           x: player.x,
           y: player.y,
-          dx: spreadDx * (player.bulletSpeed / 2),
-          dy: spreadDy * (player.bulletSpeed / 2),
-          width: player.bulletWidth,
-          height: player.bulletHeight,
+          dx: spreadDx * weapon.bulletSpeed,
+          dy: spreadDy * weapon.bulletSpeed,
+          width: weapon.bulletWidth,
+          height: weapon.bulletHeight,
           color: "yellow",
-          damage: 2,
+          damage: 1,
         });
       }
     }
     player.lastShotTime = now;
+  }
+}
+function resetPlayerWeaponStats() {
+  if (player.weapon === "5hp") {
+    weapon.bulletSpeed = 10;
+  } else if (player.weapon === "slow") {
+    player.fireCooldown = 50;
+    weapon.bulletSpeed = 5;
+  } else if (player.weapon === "spread") {
+    player.fireCooldown = 100;
+    weapon.bulletSpeed = 3;
   }
 }

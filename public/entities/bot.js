@@ -3,8 +3,8 @@ import { canvas } from "../engine/canvas.js";
 export const botConfig = {
   size: 15,
   color: "red",
-  hp: 3,
-  speed: 3,
+  hp: 5,
+  speed: 2,
 };
 
 export function createBot() {
