@@ -6,19 +6,20 @@ import { canvas, ctx } from "./canvas.js";
 import { shoot } from "../entities/weapon.js";
 
 export let selectedWeapon = "";
+
+
 export function draw(
   gameState,
   player,
   bots,
   bosses,
   weapons,
-  // selectedWeapon,
   countdown,
   botsActive,
   autoShootInterval
 ) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   // Draw obstacles
   obstacles.forEach((obstacle) => {
     ctx.fillStyle = obstacle.color;
@@ -94,6 +95,7 @@ export function draw(
           mouseY <= buttonY + weaponButtonHeight
         ) {
           selectedWeapon = weapon.type;
+
           state.weaponSelectWindow = false;
           player.speed = 5;
           botsActive = true;
@@ -126,7 +128,6 @@ export function draw(
 
     barY += barHeight + barSpacing; // Move to the next Y position for the next bar
   }
-  console.log(gameState, countdown);
 
   // Hiển thị countdown khi trò chơi đang ở trạng thái 'start' hoặc 'playing'
   if (gameState === "start" || (gameState === "playing" && countdown > 0)) {

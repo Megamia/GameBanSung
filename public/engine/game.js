@@ -14,6 +14,7 @@ let gameState = "start";
 let countdown = 3;
 let countdownInterval;
 
+
 shoot();
 
 const startButton = document.createElement("button");
@@ -566,29 +567,31 @@ function gameLoop() {
     drawStartScreen();
   } else if (gameState === "gameOver") {
     drawGameOverScreen();
+
     draw(
       gameState,
       player,
       bots,
       bosses,
+      weapons,
       // selectedWeapon,
       countdown,
       botsActive,
-      shoot,
       autoShootInterval
     );
   }
   if (gameState === "playing") {
     update();
+
     draw(
       gameState,
       player,
       bots,
       bosses,
+      weapons,
       // selectedWeapon,
       countdown,
       botsActive,
-      shoot,
       autoShootInterval
     );
   }

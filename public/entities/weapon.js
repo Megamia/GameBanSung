@@ -29,7 +29,6 @@ export function shoot() {
     // Cập nhật vũ khí của player nếu có sự thay đổi
     if (selectedWeapon) {
       player.weapon = selectedWeapon;
-      console.log("Selected Weapon:", selectedWeapon);
       // selectedWeapon = null; // Đặt lại selectedWeapon để tránh giữ vũ khí cũ
     }
 
