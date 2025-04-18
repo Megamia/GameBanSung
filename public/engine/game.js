@@ -1,25 +1,23 @@
-import { player } from "../entities/player.js";
+import { createPlayer } from "../entities/player.js";
 import { botConfig, createBot } from "../entities/bot.js";
 import { bossConfig } from "../entities/boss.js";
 import { obstacles } from "../entities/obstacles.js";
-import { weaponTypes, weapon } from "../entities/weapon.js";
-import { powerUps, handlePowerUps } from "../entities/power.js";
+import { weaponTypes, weapon, shoot } from "../entities/weapon.js";
+import { powerUps, handlePowerUps, createPowerUp } from "../entities/power.js";
 import { checkCircleRectCollision } from "../utils/collide.js";
 import { checkCollision } from "../utils/collision.js";
+import { draw } from "./draw.js";
+import { canvas, ctx } from "./canvas.js";
 
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-
+export const player = createPlayer();
 let gameState = "start";
 let countdown = 3;
 let countdownInterval;
-let powerUpInterval = null;
+
+shoot();
 
 const startButton = document.createElement("button");
-
 // Mouse position
-let mouseX = 0;
-let mouseY = 0;
 
 // Set canvas size
 function resizeCanvas() {
@@ -36,11 +34,12 @@ let autoShootInterval;
 const bots = [];
 const numBots = 5;
 
-let weaponSelectWindow = false;
+export const state = {
+  weaponSelectWindow: false,
+};
+
 let botsActive = false;
 
-let selectedWeapon = null;
-let selectedWeaponIndex = null;
 const weapons = [];
 
 // Movement
@@ -53,82 +52,8 @@ document.addEventListener("keyup", (e) => {
   keys[e.key] = false;
 });
 
-// Update mouse position
-canvas.addEventListener("mousemove", (e) => {
-  mouseX = e.clientX;
-  mouseY = e.clientY;
-});
-
-function shoot() {
-  const now = Date.now();
-
-  if (now - player.lastShotTime >= player.fireCooldown) {
-    let dx = mouseX - player.x;
-    let dy = mouseY - player.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    let normalizedDx = dx / distance;
-    let normalizedDy = dy / distance;
-
-    if (player.weapon === "normal") {
-      player.bullets.push({
-        x: player.x,
-        y: player.y,
-        dx: normalizedDx * player.bulletSpeed,
-        dy: normalizedDy * player.bulletSpeed,
-        width: player.bulletWidth,
-        height: player.bulletHeight,
-        color: "red",
-        damage: 1,
-      });
-    } else if (player.weapon === "5hp") {
-      player.bullets.push({
-        x: player.x,
-        y: player.y,
-        dx: normalizedDx * player.bulletSpeed,
-        dy: normalizedDy * player.bulletSpeed,
-        width: player.bulletWidth,
-        height: player.bulletHeight,
-        color: "green",
-        damage: 5,
-      });
-    } else if (player.weapon === "slow") {
-      player.bullets.push({
-        x: player.x,
-        y: player.y,
-        dx: normalizedDx * (player.bulletSpeed / 2),
-        dy: normalizedDy * (player.bulletSpeed / 2),
-        width: player.bulletWidth,
-        height: player.bulletHeight,
-        color: "blue",
-        slow: true,
-        damage: 1,
-      });
-    } else if (player.weapon === "spread") {
-      for (let i = -2; i <= 2; i++) {
-        const angle = Math.atan2(dy, dx) + (i * Math.PI) / 12;
-        const spreadDx = Math.cos(angle);
-        const spreadDy = Math.sin(angle);
-        player.bullets.push({
-          x: player.x,
-          y: player.y,
-          dx: spreadDx * (player.bulletSpeed / 2),
-          dy: spreadDy * (player.bulletSpeed / 2),
-          width: player.bulletWidth,
-          height: player.bulletHeight,
-          color: "yellow",
-          damage: 2,
-        });
-      }
-    }
-
-    player.lastShotTime = now;
-  }
-}
-
-handlePowerUps(gameState, countdown, powerUpInterval, weaponSelectWindow);
-
 function update() {
-  if (weaponSelectWindow) return;
+  if (state.weaponSelectWindow) return;
   let tempX = player.x;
   let tempY = player.y;
 
@@ -423,7 +348,7 @@ function update() {
               weapons.push({ type: "5hp" }); // Thêm vũ khí mới
               weapons.push({ type: "slow" });
               weapons.push({ type: "spread" });
-              weaponSelectWindow = true;
+              state.weaponSelectWindow = true;
               player.weaponSelect = true;
               clearInterval(autoShootInterval);
               autoShootInterval = null;
@@ -492,204 +417,40 @@ function update() {
     }
   });
 
-  // Power-up logic
-
-  if (selectedWeapon) {
-    if (player.weaponSelect) {
-      player.weaponSelect = false;
-    }
-  }
-
-  if (selectedWeapon) {
-    player.weapon = selectedWeapon;
-    player.weaponDuration += 1 / 60;
-    if (player.weaponDuration >= 10) {
-      player.weapon = "normal";
-      player.weaponDuration = 0;
-      selectedWeapon = null;
-    }
-  }
+  // if (selectedWeapon) {
+  //   player.weapon = weapons;
+  //   if (player.weaponSelect) {
+  //     player.weaponSelect = false;
+  //     player.weaponDuration = 0;
+  //     selectedWeapon = null;
+  //     setTimeout(() => {
+  //       player.weapon = "normal";
+  //     }, 10000);
+  //   }
+  // }
 
   // Power-up timer update and effect removal
-  player.activePowerUps = player.activePowerUps.filter((pu) => {
-    pu.timer += 1 / 60;
-
-    // Increase timer by 1 frame (assuming 60 FPS)
+  player.activePowerUps.forEach((pu, index) => {
+    pu.timer += 1 / 60; // Tăng theo mỗi frame (60 FPS)
 
     if (pu.timer >= pu.duration) {
-      // Revert the effect when time is up
+      // Hết thời gian power-up
       if (pu.type === "speedBoost") {
-        player.speed -= 2;
+        player.speed -= 2; // Giảm tốc độ khi hết thời gian power-up
       } else if (pu.type === "moreBullet") {
-        player.fireCooldown = 500;
-      } else if (pu.type === "unDead") {
+        player.fireCooldown = 500; // Quay lại cooldown bình thường
+      }
+      // Nếu power-up là undead, cần phục hồi lại tình trạng sống
+      else if (pu.type === "unDead") {
         player.isUndead = false;
       }
-
-      return false; // Remove the expired power-up
+      // Loại bỏ power-up đã hết hạn
+      player.activePowerUps.splice(index, 1);
     }
-
-    return true; // Keep the power-up active
   });
 }
 
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Draw obstacles
-  obstacles.forEach((obstacle) => {
-    ctx.fillStyle = obstacle.color;
-    ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
-  });
-
-  // Draw player
-  ctx.fillStyle = player.color;
-  ctx.beginPath();
-  ctx.arc(player.x, player.y, player.size / 2, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Draw score
-  ctx.fillStyle = "white";
-  ctx.font = "20px Arial";
-  ctx.fillText("Score: " + player.score, 100, 30);
-
-  // Draw player's lives
-  ctx.fillStyle = "white";
-  ctx.fillText("Lives: " + player.lives, 100, 60);
-
-  // Draw power-ups
-  powerUps.forEach((powerUp) => {
-    ctx.fillStyle = "yellow";
-    ctx.beginPath();
-    ctx.arc(powerUp.x, powerUp.y, powerUp.size / 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "black";
-    ctx.font = "10px Arial";
-    ctx.textAlign = "center";
-    if (powerUp.type === "unDead") {
-      ctx.fillText("UD", powerUp.x, powerUp.y + 3);
-    } else if (powerUp.type === "speedBoost") {
-      ctx.fillText("SB", powerUp.x, powerUp.y + 3);
-    } else if (powerUp.type === "moreBullet")
-      ctx.fillText("MB", powerUp.x, powerUp.y + 3);
-  });
-  // Draw weapons
-
-  // Draw weapon select window
-  if (weaponSelectWindow && weapons.length > 0) {
-    const weaponButtonWidth = 80;
-    const weaponButtonHeight = 30;
-    const weaponButtonSpacing = 10;
-    const startX =
-      canvas.width / 2 -
-      (weaponButtonWidth * weapons.length +
-        weaponButtonSpacing * (weapons.length - 1)) /
-        2;
-    const startY = canvas.height / 2 + 40;
-    weapons.forEach((weapon, index) => {
-      const buttonX =
-        startX + index * (weaponButtonWidth + weaponButtonSpacing);
-      const buttonY = startY;
-      ctx.fillStyle = "orange";
-      ctx.fillRect(buttonX, buttonY, weaponButtonWidth, weaponButtonHeight);
-      ctx.fillStyle = "black";
-      ctx.font = "15px Arial";
-      ctx.textAlign = "center";
-      ctx.fillText(
-        weapon.type,
-        buttonX + weaponButtonWidth / 2,
-        buttonY + weaponButtonHeight / 2 + 5
-      );
-      canvas.addEventListener("click", (event) => {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
-        if (
-          mouseX >= buttonX &&
-          mouseX <= buttonX + weaponButtonWidth &&
-          mouseY >= buttonY &&
-          mouseY <= buttonY + weaponButtonHeight
-        ) {
-          selectedWeapon = weapon.type;
-          weaponSelectWindow = false;
-          player.speed = 5;
-          botsActive = true;
-          autoShootInterval = setInterval(shoot, 100);
-        }
-      });
-    });
-  }
-
-  let barY = 100; // Starting Y position for the first bar
-  const barHeight = 10;
-  const barWidth = 100;
-  const barSpacing = 15; // Space between bars
-
-  for (const pu of player.activePowerUps) {
-    // Draw background bar (empty)
-    ctx.fillStyle = "white";
-    ctx.fillRect(250, barY, barWidth, barHeight);
-
-    // Draw power-up progress bar (filled)
-    ctx.fillStyle = "green";
-    const currentBarWidth = (pu.timer / pu.duration) * barWidth;
-    ctx.fillRect(250, barY, currentBarWidth, barHeight);
-
-    // Draw power-up type text, adjust to center vertically with the bar
-    ctx.fillStyle = "white";
-    ctx.font = "20px Arial";
-    ctx.textAlign = "start";
-    ctx.fillText(pu.type, 100, barY + barHeight / 2 + 7); // Center text vertically
-
-    barY += barHeight + barSpacing; // Move to the next Y position for the next bar
-  }
-
-  // Hiển thị countdown khi trò chơi đang ở trạng thái 'start' hoặc 'playing'
-  if (gameState === "start" || (gameState === "playing" && countdown > 0)) {
-    ctx.font = "200px Arial";
-    ctx.fillText(countdown, canvas.width / 2, canvas.height / 2 + 50);
-  }
-
-  player.bullets.forEach((bullet) => {
-    ctx.save();
-
-    ctx.translate(bullet.x, bullet.y);
-
-    // Tính góc và xoay thêm 90 độ để đạn thẳng hướng (vì đạn dài theo trục y)
-    const angle = Math.atan2(bullet.dy, bullet.dx);
-    ctx.rotate(angle + Math.PI / 2); // ⬅️ xoay thêm 90 độ
-
-    ctx.fillStyle = bullet.color;
-    ctx.fillRect(
-      -bullet.width / 2,
-      -bullet.height / 2,
-      bullet.width,
-      bullet.height
-    );
-
-    ctx.restore();
-  });
-
-  // Draw bots
-  bots.forEach((bot) => {
-    ctx.fillStyle = bot.color;
-    ctx.beginPath();
-    ctx.arc(bot.x, bot.y, bot.size / 2, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  // Draw bosses
-  bosses.forEach((currentBoss) => {
-    ctx.fillStyle = currentBoss.color;
-    ctx.beginPath();
-    ctx.arc(currentBoss.x, currentBoss.y, currentBoss.size / 2, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  // Draw score
-}
 function resetGame() {
-  // Reset player state
   player.isUndead = false;
 
   player.x = canvas.width / 2;
@@ -704,29 +465,22 @@ function resetGame() {
   bossActive = false;
   weapons.length = 0;
   powerUps.length = 0;
-  clearInterval(powerUpInterval);
-  powerUpInterval = null;
+  // clearInterval(powerUpInterval);
+  // powerUpInterval = null;
   player.speed = 5;
   bosses.length = 0;
 
-  selectedWeaponIndex = null;
-  weaponSelectWindow = false;
+  state.weaponSelectWindow = false;
   botsActive = false;
 
-  // Reset bots
-  bots.length = 0; // Clear current bots
+  bots.length = 0;
   for (let i = 0; i < numBots; i++) {
-    bots.push(createBot()); // Create new bots
+    bots.push(createBot());
   }
 
-  // Reset obstacles (if needed, else leave as is)
-  // obstacles = [...original obstacles]; // Uncomment if obstacles need to be reset
-
-  // Restart auto-shooting
   clearInterval(autoShootInterval);
   autoShootInterval = null;
 
-  // Reset countdown
   countdown = 3;
   clearInterval(countdownInterval);
   countdownInterval = null;
@@ -735,31 +489,31 @@ function resetGame() {
 function startGame() {
   player.isUndead = true;
   gameState = "playing";
-  countdown = 3; // Reset countdown
+  countdown = 3;
   botsActive = false;
-  startButton.style.display = "none"; // Ẩn nút start khi game bắt đầu
-  player.speed = 0; // dừng player
+  startButton.style.display = "none";
+  player.speed = 0;
   player.activePowerUps = [];
 
-  // Tạo countdown, sau khi countdown về 0 thì bắt đầu spawn bot
   countdownInterval = setInterval(() => {
-    countdown--;
+    if (countdown > 0) {
+      countdown--;
+    }
     if (countdown <= 0) {
       clearInterval(countdownInterval);
       countdownInterval = null;
       countdown = 0;
       player.speed = 5;
-      botsActive = true; // Bắt đầu cho phép bot xuất hiện
+      botsActive = true;
       for (let i = 0; i < numBots; i++) {
         bossActive = false;
-        bots.push(createBot()); // Tạo bot khi đếm ngược kết thúc
+        bots.push(createBot());
       }
     }
   }, 1000);
 }
 
 function drawStartScreen() {
-  // console.log(gameState);
   ctx.fillStyle = "white";
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.font = "30px Arial";
@@ -793,34 +547,52 @@ function setupStartButton() {
   startButton.style.cursor = "pointer";
   startButton.style.display = "block";
 
-  // Khi nhấn start, trò chơi bắt đầu hoặc reset lại
   startButton.addEventListener("click", () => {
     if (gameState === "start") {
-      startGame(); // Bắt đầu game khi nhấn "Start"
+      startGame();
     } else if (gameState === "gameOver") {
-      resetGame(); // Reset game khi game over và nhấn start lại
+      resetGame();
       startGame();
     }
   });
 
   document.body.appendChild(startButton);
 }
-
 function gameLoop() {
   requestAnimationFrame(gameLoop);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  handlePowerUps(gameState, countdown);
   if (gameState === "start") {
     drawStartScreen();
   } else if (gameState === "gameOver") {
     drawGameOverScreen();
-    draw();
+    draw(
+      gameState,
+      player,
+      bots,
+      bosses,
+      // selectedWeapon,
+      countdown,
+      botsActive,
+      shoot,
+      autoShootInterval
+    );
   }
   if (gameState === "playing") {
     update();
-    draw();
+    draw(
+      gameState,
+      player,
+      bots,
+      bosses,
+      // selectedWeapon,
+      countdown,
+      botsActive,
+      shoot,
+      autoShootInterval
+    );
   }
 }
-
 setupStartButton();
 
 gameLoop();

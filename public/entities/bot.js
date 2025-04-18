@@ -1,4 +1,4 @@
-const canvas = document.getElementById("gameCanvas");
+import { canvas } from "../engine/canvas.js";
 
 export const botConfig = {
   size: 15,

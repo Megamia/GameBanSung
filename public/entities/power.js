@@ -1,10 +1,9 @@
-import { player } from "../entities/player.js";
-
-const canvas = document.getElementById("gameCanvas");
+import { state, player } from "../engine/game.js";
+import { canvas } from "../engine/canvas.js";
 
 export const powerUps = [];
 export const powerUpTypes = ["unDead", "speedBoost", "moreBullet"];
-
+export let powerUpInterval = null;
 export function createPowerUp() {
   return {
     x: Math.random() * canvas.width,
@@ -14,25 +13,20 @@ export function createPowerUp() {
   };
 }
 
-export function handlePowerUps(
-  gameState,
-  countdown,
-  powerUpInterval,
-  weaponSelectWindow
-) {
+export function handlePowerUps(gameState, countdown) {
   // Kiểm tra và cập nhật power-up interval
   if (gameState === "playing" && !countdown) {
     if (!powerUpInterval) {
       powerUpInterval = setInterval(() => {
-        if (gameState === "playing" && !weaponSelectWindow) {
+        if (gameState === "playing" && !state.weaponSelectWindow) {
           const newPowerUp = createPowerUp();
-          powerUps.push(newPowerUp);
+          powerUps.push(newPowerUp); // Tạo power-up mới
         }
-      }, 1000);
+      }, 1000); // Tạo power-up mỗi giây
     }
   } else {
     if (powerUpInterval) {
-      clearInterval(powerUpInterval);
+      clearInterval(powerUpInterval); // Dừng tạo power-up nếu không chơi
       powerUpInterval = null;
     }
   }
@@ -44,28 +38,29 @@ export function handlePowerUps(
     );
     if (dist < player.size / 2 + powerUp.size / 2) {
       // Kiểm tra nếu power-up đã tồn tại trong danh sách activePowerUps
-      const existingPowerUpIndex = player.activePowerUps.findIndex(
+      const existingPowerUp = player.activePowerUps.find(
         (pu) => pu.type === powerUp.type
       );
 
-      if (existingPowerUpIndex !== -1) {
-        // Reset timer nếu power-up đã tồn tại
-        player.activePowerUps[existingPowerUpIndex].timer = 0;
+      if (existingPowerUp) {
+        // Nếu power-up đã tồn tại, reset timer và không thêm mới
+        existingPowerUp.timer = 0;
+        powerUps.splice(index, 1);
+        return;
       } else {
         // Thêm mới power-up vào danh sách activePowerUps
         player.activePowerUps.push({
           type: powerUp.type,
-          timer: 0,
+          timer: 0, // Khởi tạo timer
           duration: 300, // Thời gian tồn tại của power-up (giây)
         });
-
         // Áp dụng các hiệu ứng của power-up cho người chơi
         if (powerUp.type === "speedBoost") {
-          player.speed += 2;
+          player.speed += 2; // Tăng tốc độ
         } else if (powerUp.type === "moreBullet") {
-          player.fireCooldown = 100;
+          player.fireCooldown = 100; // Giảm thời gian cooldown bắn
         } else if (powerUp.type === "unDead") {
-          player.isUndead = true;
+          player.isUndead = true; // Cho phép không chết
         }
       }
 

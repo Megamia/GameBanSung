@@ -1,5 +1,6 @@
-const canvas = document.getElementById("gameCanvas");
-export const createPlayer = (canvas) => {
+import { canvas } from "../engine/canvas.js";
+
+export const createPlayer = () => {
   return {
     x: canvas.width / 1.5,
     y: canvas.height / 1.5,
@@ -13,7 +14,7 @@ export const createPlayer = (canvas) => {
     canShoot: true,
     score: 0,
     lives: 3,
-    fireCooldown: 20, // ms
+    fireCooldown: 20,
     lastShotTime: 0,
     activePowerUps: [],
     weapon: "normal",
@@ -21,5 +22,3 @@ export const createPlayer = (canvas) => {
     weaponDuration: 0,
   };
 };
-
-export const player = createPlayer(canvas);
