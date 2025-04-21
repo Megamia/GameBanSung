@@ -1,4 +1,3 @@
-import { botConfig } from "../entities/bot.js";
 import { obstacles } from "../entities/obstacles.js";
 import { powerUps } from "../entities/power.js";
 import { state } from "./game.js";
