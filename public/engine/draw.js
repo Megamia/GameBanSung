@@ -6,7 +6,6 @@ import { shoot } from "../entities/weapon.js";
 
 export let selectedWeapon = "";
 
-
 export function draw(
   gameState,
   player,
@@ -17,7 +16,6 @@ export function draw(
   botsActive,
   autoShootInterval
 ) {
-
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   obstacles.forEach((obstacle) => {
     ctx.fillStyle = obstacle.color;
@@ -97,12 +95,26 @@ export function draw(
     });
   }
 
-  let barY = 100; 
+  let barY = 100;
   const barHeight = 10;
   const barWidth = 100;
-  const barSpacing = 15; 
+  const barSpacing = 15;
 
   for (const pu of player.activePowerUps) {
+    let powerName;
+    switch (pu.type) {
+      case "unDead":
+        powerName = "Bất tử";
+        break;
+      case "speedBoost":
+        powerName = "Tăng tốc";
+        break;
+      case "moreBullet":
+        powerName = "Bắn tùm lum";
+        break;
+      default:
+        powerName = " ";
+    }
     ctx.fillStyle = "white";
     ctx.fillRect(250, barY, barWidth, barHeight);
 
@@ -113,7 +125,7 @@ export function draw(
     ctx.fillStyle = "white";
     ctx.font = "20px Arial";
     ctx.textAlign = "start";
-    ctx.fillText(pu.type, 100, barY + barHeight / 2 + 7);
+    ctx.fillText(powerName, 100, barY + barHeight / 2 + 7);
 
     barY += barHeight + barSpacing;
   }
@@ -129,7 +141,7 @@ export function draw(
     ctx.translate(bullet.x, bullet.y);
 
     const angle = Math.atan2(bullet.dy, bullet.dx);
-    ctx.rotate(angle + Math.PI / 2); 
+    ctx.rotate(angle + Math.PI / 2);
 
     ctx.fillStyle = bullet.color;
     ctx.fillRect(
